@@ -1,0 +1,17 @@
+[build-system]
+requires = ["flit_core >=2,<4"]
+build-backend = "flit_core.buildapi"
+
+[tool.flit.metadata]
+module = "tiddlyserver"
+author = "Jonathan Heathcote"
+author-email = "mail@jhnet.co.uk"
+home-page = "https://github.com/mossblaser/tiddlyserver"
+classifiers = [ "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",]
+requires = [
+    "aiohttp ~= 3.0",
+    "GitPython ~= 3.0",
+]
+
+[tool.flit.scripts]
+tiddlyserver = "tiddlyserver.server:main"
