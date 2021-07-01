@@ -1,0 +1,12 @@
+[
+    {
+        "title": "$:/plugins/mossblaser/reenable-plugin-downloads",
+        "type": "application/json",
+        "description": "Renable the plugin download UI when TiddlyWeb is enabled",
+        "plugin-type": "plugin",
+        "version": "0.0.1",
+        "author": "mossblaser",
+        "plugin-priority": 20,
+        "text": "{\"tiddlers\":{\"$:/config/OfficialPluginLibrary\":{\"text\":\"{{$:/language/OfficialPluginLibrary/Hint}}\\n\",\"url\":\"https://tiddlywiki.com/library/v5.1.23/index.html\",\"title\":\"$:/config/OfficialPluginLibrary\",\"tiddlyserver.git\":\"no\",\"tags\":\"$:/tags/PluginLibrary\",\"caption\":\"{{$:/language/OfficialPluginLibrary}}\"}}}"
+    }
+]

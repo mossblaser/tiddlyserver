@@ -46,6 +46,8 @@ def tiddler_git_filter(tiddler: dict[str, str]) -> bool:
         tiddler.get("draft.of", None) is None
         # Skip the storylist
         and tiddler.get("title") != "$:/StoryList"
+        # Allow manual override
+        and tiddler.get("tiddlyserver.git") != "no"
     )
 
 
