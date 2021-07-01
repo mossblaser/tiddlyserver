@@ -26,8 +26,27 @@ from tiddlyserver.tiddler_embedding import embed_tiddlers_into_empty_html
 
 from tiddlyserver.tiddler_hash import tiddler_hash
 
+from tiddlyserver.git import (
+    init_repo_if_needed,
+    commit_files_if_changed,
+)
+
+EMPTY_WITH_TIDDLYWEB = Path(inspect.getfile(tiddlyserver)).parent / "empty_with_tiddlyweb.html"
+
 
 routes = web.RouteTableDef()
+
+
+def tiddler_git_filter(tiddler: dict[str, str]) -> bool:
+    """
+    Return True only for Tiddlers which should be included in Git.
+    """
+    return (
+        # Ignore drafts
+        tiddler.get("draft.of", None) is None
+        # Skip the storylist
+        and tiddler.get("title") != "$:/StoryList"
+    )
 
 
 @routes.get('/')
@@ -106,13 +125,15 @@ async def put_tiddler(request):
     Store (or modify) a tiddler.
     """
     tiddler_dir = request.app["tiddler_dir"]
+    use_git = request.app["use_git"]
     
     title = request.match_info["path"]
     tiddler = await request.json()
     
     # Undo silly TiddlyWeb formatting
     tiddler.update(tiddler.pop("fields", {}))
-    tiddler["tags"] = " ".join(f"[[{tag}]]" for tag in tiddler.get("tags", []))
+    if "tags" in tiddler:
+        tiddler["tags"] = " ".join(f"[[{tag}]]" for tag in tiddler.get("tags", []))
     
     # Mandatory for TiddlyWeb but (but unused by this implementation)
     tiddler["bag"] = "bag"
@@ -125,7 +146,9 @@ async def put_tiddler(request):
     # Sanity check
     assert title == tiddler.get("title")
     
-    write_tiddler(tiddler_dir, tiddler)
+    changed_files = write_tiddler(tiddler_dir, tiddler)
+    if use_git and tiddler_git_filter(tiddler):
+        commit_files_if_changed(tiddler_dir, changed_files, f"Updated {title}")
     
     etag = f'"bag/{title}/{revision}:{hash}"'
     
@@ -140,10 +163,14 @@ async def remove_tiddler(request):
     Delete a tiddler.
     """
     tiddler_dir = request.app["tiddler_dir"]
+    use_git = request.app["use_git"]
     
     title = request.match_info["path"]
     
     deleted_files = delete_tiddler(tiddler_dir, title)
+    
+    if use_git:
+        commit_files_if_changed(tiddler_dir, deleted_files, f"Deleted {title}")
     
     if deleted_files:
         return web.Response()
@@ -151,7 +178,7 @@ async def remove_tiddler(request):
         raise web.HTTPNotFound()
 
 
-def make_app(empty_html_filename: Path, tiddler_dir: Path) -> web.Application:
+def make_app(empty_html_filename: Path, tiddler_dir: Path, use_git: bool) -> web.Application:
     """
     Create an :py:class:`aiohttp.web.Application` for the TiddlyServer.
     
@@ -162,11 +189,15 @@ def make_app(empty_html_filename: Path, tiddler_dir: Path) -> web.Application:
         installed.
     tiddler_dir : Path
         The directory in which tiddlers will be stored.
+    use_git : bool
+        If True, will ensure the tiddler directory is a git repository and
+        auto-commit changes to that repository.
     """
     app = web.Application(client_max_size=1024*1024*1024)
     app.add_routes(routes)
     app["empty_html_filename"] = empty_html_filename
     app["tiddler_dir"] = tiddler_dir.resolve()
+    app["use_git"] = use_git
     return app
 
 
@@ -212,21 +243,34 @@ def main():
         """
     )
     
+    parser.add_argument(
+        "--no-git", "-G",
+        action="store_true",
+        default=False,
+        help="""
+            If given, do not track changes to tiddlers using git.
+        """
+    )
+    
     args = parser.parse_args()
     
     tiddler_dir = args.tiddler_dir
     empty_html_filename = tiddler_dir / "empty.html"
+    use_git = not args.no_git
     
     # Create tiddler directory and empty HTML if either doesn't exist yet
     if not tiddler_dir.is_dir():
         tiddler_dir.mkdir(parents=True)
     if not empty_html_filename.is_file():
         shutil.copy(
-            Path(inspect.getfile(tiddlyserver)).parent / "empty_with_tiddlyweb.html",
+            EMPTY_WITH_TIDDLYWEB,
             empty_html_filename,
         )
+    if use_git:
+        init_repo_if_needed(tiddler_dir)
+        commit_files_if_changed(tiddler_dir, [empty_html_filename], "Update empty.html")
     
-    app = make_app(empty_html_filename, tiddler_dir)
+    app = make_app(empty_html_filename, tiddler_dir, use_git)
     web.run_app(app, host=args.host, port=args.port)
 
 
