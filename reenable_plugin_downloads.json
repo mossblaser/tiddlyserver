@@ -1,12 +1,1 @@
-[
-    {
-        "title": "$:/plugins/mossblaser/reenable-plugin-downloads",
-        "type": "application/json",
-        "description": "Renable the plugin download UI when TiddlyWeb is enabled",
-        "plugin-type": "plugin",
-        "version": "0.0.1",
-        "author": "mossblaser",
-        "plugin-priority": 20,
-        "text": "{\"tiddlers\":{\"$:/config/OfficialPluginLibrary\":{\"text\":\"{{$:/language/OfficialPluginLibrary/Hint}}\\n\",\"url\":\"https://tiddlywiki.com/library/v5.1.23/index.html\",\"title\":\"$:/config/OfficialPluginLibrary\",\"tiddlyserver.git\":\"no\",\"tags\":\"$:/tags/PluginLibrary\",\"caption\":\"{{$:/language/OfficialPluginLibrary}}\"}}}"
-    }
-]
+[{"title": "$:/plugins/mossblaser/reenable-plugin-downloads", "author": "mossblaser", "version": "5.1.23", "core-version": "==5.1.23", "description": "Renable the plugin download UI when TiddlyWeb is enabled", "plugin-type": "plugin", "plugin-priority": 20, "type": "application/json", "text": "{\"title\": \"$:/config/OfficialPluginLibrary\", \"tags\": \"$:/tags/PluginLibrary\", \"url\": \"https://tiddlywiki.com/library/v5.1.23/index.html\", \"caption\": \"{{$:/language/OfficialPluginLibrary}}\", \"text\": \"{{$:/language/OfficialPluginLibrary/Hint}}\\n\", \"tiddlyserver.git\": \"no\"}"}]

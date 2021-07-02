@@ -15,3 +15,4 @@ requires = [
 
 [tool.flit.scripts]
 tiddlyserver = "tiddlyserver.server:main"
+make-tiddlywiki-reenable-plugin-downloads-plugin = "tiddlyserver.make_reenable_plugin_downloads_plugin:main"
