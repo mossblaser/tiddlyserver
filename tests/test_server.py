@@ -2,13 +2,13 @@ import pytest
 
 import shutil
 
+import json
+
 from pathlib import Path
 
-from aiohttp.test_utils import TestClient
+from flask.testing import FlaskClient
 
-from tiddlyserver.git import init_repo_if_needed
-
-from tiddlyserver.server import make_app, EMPTY_WITH_TIDDLYWEB
+from tiddlyserver.server import create_app, EMPTY_WITH_TIDDLYWEB
 
 from test_git import git_log
 
@@ -19,89 +19,80 @@ def tiddler_path(tmp_path: Path) -> Path:
     path.mkdir()
     return path
 
-@pytest.fixture
-def empty_html(tiddler_path: Path) -> Path:
-    filename = tiddler_path / "tiddlers"
-    shutil.copy(EMPTY_WITH_TIDDLYWEB, filename)
-    return filename
-
 
 class TestNoGit:
 
     @pytest.fixture
-    async def server(self, aiohttp_client: None, tiddler_path: Path, empty_html: Path) -> TestClient:
-        app = make_app(empty_html, tiddler_path, use_git=False)
-        return await aiohttp_client(app)
+    def client(self, tiddler_path: Path) -> FlaskClient:
+        app = create_app(tiddler_path, use_git=False)
+        with app.test_client() as client:
+            yield client
     
-    
-    async def test_apis(self, server: TestClient) -> None:
+    def test_apis(self, client: FlaskClient) -> None:
         # Initially empty
-        response = await server.get("/recipes/all/tiddlers.json")
-        assert (await response.json()) == []
+        response = client.get("/recipes/all/tiddlers.json").get_json()
+        assert response == []
         
         # Add a tiddler
-        response = await server.put(
+        client.put(
             "/recipes/all/tiddlers/foobar",
-            json={"title": "foobar", "foo": "bar", "text": "Foo, bar, init?"},
+            data=json.dumps({"title": "foobar", "foo": "bar", "text": "Foo, bar, init?"}),
+            content_type="application/json",
         )
         
         # Fetch it back (should now have bag and revision fields too)
-        response = await server.get(
-            "/recipes/all/tiddlers/foobar",
-        )
-        tiddler = await response.json()
+        tiddler = client.get("/recipes/all/tiddlers/foobar").get_json()
         assert set(tiddler) == {"title", "foo", "text", "bag", "revision"}
         
         # Should include the tiddler
-        response = await server.get("/recipes/all/tiddlers.json")
-        tiddlers = await response.json()
+        tiddlers = client.get("/recipes/all/tiddlers.json").get_json()
         assert len(tiddlers) == 1
         tiddler = tiddlers[0]
         assert set(tiddler) == {"title", "foo", "bag", "revision"}
         
         # The empty HTML file should have the tiddler embedded in it too
-        response = await server.get("/")
-        assert "Foo, bar, init?" in (await response.text())
+        response = client.get("/").get_data(as_text=True)
+        assert "Foo, bar, init?" in response
         
         # Delete the tiddler
-        response = await server.delete("/bags/bag/tiddlers/foobar")
-        assert response.ok
-        response = await server.get("/recipes/all/tiddlers.json")
-        assert (await response.json()) == []
+        client.delete("/bags/bag/tiddlers/foobar")
+        response = client.get("/recipes/all/tiddlers.json").get_json()
+        assert response == []
 
 
 class TestWithGit:
 
     @pytest.fixture
-    async def server(self, aiohttp_client: None, tiddler_path: Path, empty_html: Path) -> TestClient:
-        init_repo_if_needed(tiddler_path)
-        app = make_app(empty_html, tiddler_path, use_git=True)
-        return await aiohttp_client(app)
+    def client(self, tiddler_path: Path) -> FlaskClient:
+        app = create_app(tiddler_path, use_git=True)
+        with app.test_client() as client:
+            yield client
     
-    async def test_apis(self, server: TestClient, tiddler_path: Path) -> None:
+    def test_apis(self, client: FlaskClient, tiddler_path: Path) -> None:
         # Add a tiddler
-        response = await server.put(
+        client.put(
             "/recipes/all/tiddlers/foobar",
-            json={"title": "foobar"},
+            data=json.dumps({"title": "foobar"}),
+            content_type="application/json",
         )
-        assert git_log(tiddler_path) == ["Updated foobar"]
+        assert git_log(tiddler_path) == ["Updated empty.html", "Updated foobar"]
         
         # Add a draft and StoryList (which should be ignored
-        response = await server.put(
+        client.put(
             "/recipes/all/tiddlers/$:/StoryList",
-            json={"title": "$:/StoryList"},
+            data=json.dumps({"title": "$:/StoryList"}),
+            content_type="application/json",
         )
-        response = await server.put(
+        client.put(
             "/recipes/all/tiddlers/Draft of foo",
-            json={"title": "Draft of foo", "draft.of": "foo"},
+            data=json.dumps({"title": "Draft of foo", "draft.of": "foo"}),
+            content_type="application/json",
         )
-        assert git_log(tiddler_path) == ["Updated foobar"]
+        assert git_log(tiddler_path) == ["Updated empty.html", "Updated foobar"]
         
         # Delete the tiddler
-        response = await server.delete("/bags/bag/tiddlers/foobar")
-        assert response.ok
-        assert git_log(tiddler_path) == ["Updated foobar", "Deleted foobar"]
+        client.delete("/bags/bag/tiddlers/foobar")
+        assert git_log(tiddler_path) == ["Updated empty.html", "Updated foobar", "Deleted foobar"]
         
-        response = await server.delete("/bags/bag/tiddlers/foobar")
-        assert not response.ok
-        assert git_log(tiddler_path) == ["Updated foobar", "Deleted foobar"]
+        client.delete("/bags/bag/tiddlers/foobar")
+        assert git_log(tiddler_path) == ["Updated empty.html", "Updated foobar", "Deleted foobar"]

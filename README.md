@@ -41,12 +41,16 @@ Non-features
   on the server).
 
 
-Installation and Usage
-----------------------
+Installation
+------------
 
 You can install TiddlyServer using pip from PyPI like so:
 
     $ pip install tiddlyserver
+
+
+Standalone usage
+----------------
 
 You can then start the server using:
 
@@ -61,6 +65,34 @@ initialising an empty repository in the Tiddler directory (if it is not already
 within a git repository). You can disable this feature with `--no-git`.
 
 See `--help` for details on changing the port/host the server listens on.
+
+
+Web server usage
+----------------
+
+To run tiddlyserver behind a webserver, TiddlyServer exposes a WSGI API via the
+`tiddlyserver.create_app` application factory. This factory requres two
+arguments:
+
+* `tiddler_dir` (A `pathlib.Path`) -- The directory in which tiddlers will be
+  stored.
+* `use_git` (A bool) -- If True, will ensure the tiddler directory is a git
+  repository and auto-commit changes to that repository.
+
+To use via FastCGI you could write a fcgi script based on
+[flup](https://www.saddi.com/software/flup/) like so:
+
+    #!/path/to/python/venv
+    from pathlib import Path
+    from flup.server.fcgi import WSGIServer
+    from tiddlyserver import create_app
+    
+    WSGIServer(
+        create_app(
+            tiddler_dir=Path("/path/to/tiddler/dir"),
+            use_git=True,
+        )
+    ).run()
 
 
 Limitations

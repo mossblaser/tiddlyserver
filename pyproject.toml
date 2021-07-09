@@ -10,6 +10,7 @@ home-page = "https://github.com/mossblaser/tiddlyserver"
 classifiers = [ "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",]
 requires = [
     "aiohttp ~= 3.0",
+    "waitress ~= 2.0",
     "GitPython ~= 3.0",
 ]
 
